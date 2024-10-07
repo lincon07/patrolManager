@@ -1,0 +1,59 @@
+{
+  "$schema": "https://schema.tauri.app/config/2.0.0",
+  "productName": "patrolmanager",
+  "version": "0.1.1",
+  "identifier": "com.patrolmanager.app",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Patrol Manager",
+        "width": 900,
+        "height": 700,
+        "resizable": true,
+        "fullscreen": false
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self' tauri://localhost; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src 'self' http://localhost:* tauri://localhost https://discord.com"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "createUpdaterArtifacts": true,
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  },
+  "plugins": {
+    "updater": {
+      "installMode": "basicUi",
+      "dialog": true,
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDM4NjM4NzJDQkRCODE4QUMKUldTc0dMaTlMSWRqT0tUTmJ3a0pXNlRiRTNqNnhxU0pxSmpLUTRDeTRDOHcyTGlqWERzTHlnK1UK",
+      "endpoints": [
+        "https://github.com/lincon07/patrolManager/releases/latest/download/release.json"
+      ]
+    },
+    "oauth": {
+      "provider": {
+        "discord": {
+          "client_id": "1265144300404998186",
+          "client_secret": "IvYD68lB3XPloS3xDgCe09QB4DpZJ6r3",
+          "redirect_uri": "http://localhost:1420/auth",
+          "scopes": ["identify", "guilds"]
+        }
+      }
+    }
+  }
+}
