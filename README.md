@@ -1,7 +1,6 @@
-# Tauri + React + Typescript
+Patrol Managar
 
-This template should help get you started developing with Tauri, React and Typescript in Vite.
+This is a private application listed for the comunity of DoJRP. At the moment this is not an offical application. 
 
-## Recommended IDE Setup
+<img width="704" alt="image" src="https://github.com/user-attachments/assets/0a3068f5-8e63-4a36-8e08-7925bae1a7b0">
 
-- [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
