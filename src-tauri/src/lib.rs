@@ -9,11 +9,12 @@ fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
 }
 
-fn main() {
+pub fn run() {
+
     tauri::Builder::default()
-        .plugin(tauri_plugin_updater::Builder::new().build()) // Adds updater plugin
-        .plugin(tauri_plugin_shell::init()) // Adds shell plugin
-        .invoke_handler(tauri::generate_handler![greet]) // Sets up command handler
-        .run(tauri::generate_context!()) // Starts the Tauri application
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_shell::init())
+        .invoke_handler(tauri::generate_handler![greet])
+        .run(tauri::generate_context!())
         .expect("Error while running Tauri application");
 }
