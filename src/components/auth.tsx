@@ -20,6 +20,7 @@ const Auth = () => {
             ]} appbarProps={{ variant: 'elevation'}} toolbarProps={{variant: 'dense', color: 'warning'}} />
             <img src={patrolManagerLogo} alt="Patrol Manager Logo" height={'auto'} width={"40%"} />
             <Button variant="contained" color="secondary" onClick={handleLogin} startIcon={<RiDiscordLine />}>Authenticate</Button>
+            {window?.location?.href}
         </Stack>
     )
 }

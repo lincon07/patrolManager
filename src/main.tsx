@@ -38,9 +38,8 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
                   <PatrolProvider>
                     <Routes>
                       <Route path="/home" element={<Home />} />
-                      <Route path="/auth" element={<Auth />} />
+                      <Route path="/" element={<Auth />} />
                       <Route path="/unauthorized" element={<Unauthorized />} />
-                      <Route path="/" element={<Loading />} />
                     </Routes>
                   </PatrolProvider>
                 </MainDataProvider>
