@@ -2,12 +2,14 @@ import { enqueueSnackbar } from "notistack";
 import React, { createContext, ReactNode, useContext, useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { LoadingContext } from "./loading";
+import { GuildMember } from "../types"; // Assuming types are defined elsewhere
 
 interface AuthContextType {
     memberData: boolean;
     userInfo: any | null; // Store the user information globally
     Authenticate: () => void;
     LogOut: () => void;
+    fetchMainGuildMemberData: (accessToken: string) => Promise<string[]>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -34,8 +36,9 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             : "http://tauri.localhost/";
         
         // Correctly encode redirect URI
-        return `https://discord.com/oauth2/authorize?client_id=1265144300404998186&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&scope=identify+guilds`;
+        return `https://discord.com/oauth2/authorize?client_id=1265144300404998186&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&scope=identify+guilds+guilds.members.read`;
     }
+
     // OAuth authentication URL builder
     const Authenticate = () => {
         Loading?.setLoading(true);
@@ -44,7 +47,7 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     };
 
     // Function to send an embedded message to your Discord webhook
-    const sendToDiscord = async (message: string, userInfo: any, color:number) => {
+    const sendToDiscord = async (message: string, userInfo: any, color: number) => {
         try {
             const { id, username, avatar } = userInfo;
             await fetch(WEBHOOK_URL, {
@@ -111,7 +114,7 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const tokenUrl = "https://discord.com/api/oauth2/token";
         const data = new URLSearchParams();
         data.append("client_id", "1265144300404998186"); // Your client ID
-        data.append("client_secret", "IvYD68lB3XPloS3xDgCe09QB4DpZJ6r3"); // Your client secret
+        data.append("client_secret", "ECMroElTboDgjjpnh3nY9NS4vC1x95gt"); // Your client secret
         data.append("grant_type", "authorization_code");
         data.append("code", code);
         data.append("redirect_uri", import.meta.env.MODE === "development" ? "http://localhost:1420/" : "http://tauri.localhost/");
@@ -189,12 +192,57 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
     };
 
+    const fetchMainGuildMemberData = async (accessToken: string) => {
+        enqueueSnackbar("Fetching guild member data...", { variant: "info" });
+        const url = "https://discord.com/api/users/@me/guilds/214986296299487232/member"; // Correct endpoint for guild member data
+        try {
+            const response = await fetch(url, {
+                headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                },
+            });
+    
+            if (response.status === 429) {
+                // Handle rate-limiting by waiting for the retry time indicated by Discord
+                const retryAfter = response.headers.get('Retry-After');
+                if (retryAfter) {
+                    const retryAfterMs = parseFloat(retryAfter) * 1000;
+                    console.warn(`Rate limited. Retrying after ${retryAfterMs} ms`);
+                    await new Promise(resolve => setTimeout(resolve, retryAfterMs));
+                    return fetchMainGuildMemberData(accessToken); // Retry the request
+                }
+            }
+    
+            if (!response.ok) {
+                const error = await response.json();
+                console.error("Error fetching guild member data:", error);
+                throw new Error("Failed to fetch guild member data");
+            }
+    
+            const memberData = await response.json();
+            console.log("Guild member data:", memberData);
+    
+            if (memberData && memberData.roles) {
+                const roles = memberData.roles;
+                console.log("User roles in guild:", roles);
+                return roles; // Return the list of roles
+            } else {
+                console.warn("Roles not found in the guild member data.");
+                return [];
+            }
+        } catch (error) {
+            console.error("Error fetching guild member data:", error);
+            return [];
+        }
+    };
+    
+    
     // Check if there's an auth token and validate it
     const checkAuthToken = async () => {
         const token = localStorage.getItem("authToken");
 
         if (!token) {
-            nav("/auth");
+            nav("/");  // Redirect to home instead of /auth
             return;
         }
 
@@ -213,12 +261,12 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             } else {
                 console.log("Auth token is invalid or expired");
                 localStorage.removeItem("authToken");
-                nav("/auth");
+                nav("/"); // Redirect to home instead of /auth
             }
         } catch (error) {
             console.error("Error checking auth token:", error);
             localStorage.removeItem("authToken");
-            nav("/auth");
+            nav("/"); // Redirect to home instead of /auth
         }
     };
 
@@ -228,14 +276,13 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         if (userInfo) {
             await sendToDiscord("A user has logged out.", userInfo, 15158332); // Red color for logout
         }
-        nav("/auth");
+        nav("/");  // Redirect to home instead of /auth
         enqueueSnackbar("Logged out", { variant: "info" });
     };
 
     useEffect(() => {
         const params = new URLSearchParams(location.search);
         const code = params.get("code");
-
         if (code) {
             console.log("Auth code:", code); // Debugging the auth code in production
             fetchAccessToken(code);
@@ -247,7 +294,7 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }, []);
 
     return (
-        <AuthContext.Provider value={{ Authenticate, LogOut, memberData, userInfo }}>
+        <AuthContext.Provider value={{ Authenticate, LogOut, fetchMainGuildMemberData, memberData, userInfo }}>
             {children}
         </AuthContext.Provider>
     );

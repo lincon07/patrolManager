@@ -2,7 +2,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 // Import necessary crates
-use tauri::{Manager};
 
 #[tauri::command]
 fn greet(name: &str) -> String {
