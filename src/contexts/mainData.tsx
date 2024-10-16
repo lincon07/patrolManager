@@ -1,125 +1,76 @@
-import React from "react";
+import React, { createContext, useState, useEffect } from "react";
 import { Department, MainDataContextType, Member, Server } from "../types";
-import bcso from "../assets/bcso.png";
-import hp from "../assets/sahp.png";
-import pd from "../assets/lspd.png";
-import fd from "../assets/fd.png";
-import civ from "../assets/civ.png";
-import DoC from "../assets/DoC.png";
-import { LocalFireDepartment, LocalFireDepartmentOutlined, LocalPolice, LocalPoliceOutlined, People, PeopleOutlineOutlined } from "@mui/icons-material";
+import { createStore, Store } from '@tauri-apps/plugin-store';
 
-const MainDataContext = React.createContext<MainDataContextType | null>(null);
+// Create stores using Tauri's plugin-store
+const handleCreateStore = async (storeName: string): Promise<Store> => {
+    return await createStore(`data.${storeName}`);
+};
 
-const MainDataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =>  {
-    const [departments, setDepartments] = React.useState<Department[]>([]);
-    const [servers, setServers] = React.useState<Server[]>([]);
-    const [members, setMembers] = React.useState<Member[]>([]);
+const MainDataContext = createContext<MainDataContextType | null>(null);
 
-    const fetchMembers = async () => {
-        const tempMembers: Member[] = [
-            {
-                "name": "John Doe",
-                "email": "JDoe@gmail.coom",
-                "websiteID": "23312",
-                "discordID": "737699613594877983"
-            }
-        ]
-        setMembers(tempMembers);
-    }
-    const fetchDepartments = async () => {
-        const tempDepartments: Department[] = [
-            {
-                "FullName": "Sheriff's Office",
-                "Alias": "SO",
-                "DiscordID": "317430442431086594",
-                "RoleID": "428212810049257484",
-                "Image": bcso,
-                "Icon": <LocalPoliceOutlined />
-            },
-            {
-                "FullName": "Highway Patrol",
-                "Alias": "HP",
-                "DiscordID": "346092058689142785",
-                "RoleID": "428212616373207050",
-                "Image": hp,
-                "Icon": <LocalPoliceOutlined />
+const MainDataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    const [departments, setDepartments] = useState<Department[] | null>(null);
+    const [servers, setServers] = useState<Server[]>([]);
+    const [members, setMembers] = useState<Member | null>(null); // Single Member object
+    const [departmentStore, setDepartmentStore] = useState<Store | null>(null);
+    const [serverStore, setServerStore] = useState<Store | null>(null);
+    const [memberStore, setMemberStore] = useState<Store | null>(null);
 
-            },
-            {
-                "FullName": "Police Department",
-                "Alias": "PD",
-                "DiscordID": "344980171687723008",
-                "RoleID": "428212668533440512",
-                "Image": pd,
-                "Icon": <LocalPoliceOutlined />
+    // Store changes listeners
+    departmentStore?.onChange(async () => {
+        const storedDepartments = await departmentStore?.get('departments');
+        if (storedDepartments) {
+            setDepartments(storedDepartments as Department[]);
+            await departmentStore?.save();
+        }
+    });
 
-            },
-            {
-                "FullName": "Fire Department",
-                "Alias": "FD",
-                "DiscordID": "329008294523961345",
-                "RoleID": "822426820447567872",
-                "Image": fd,
-                "Icon": <LocalFireDepartmentOutlined />
+    serverStore?.onChange(async () => {
+        const storedServers = await serverStore?.get('servers');
+        if (storedServers) {
+            setServers(storedServers as Server[]);
+            serverStore?.save();
+        }
+    });
 
-            },
-            {
-                "FullName": "Civilian Operation",
-                "Alias": "CIV",
-                "DiscordID": "822426820447567872",
-                "RoleID": "822426820447567872",
-                "Image": civ,
-                "Icon": <PeopleOutlineOutlined />
+    memberStore?.onChange(async () => {
+        const storedMember = await memberStore?.get('member'); // Single Member object
+        if (storedMember) {
+            setMembers(storedMember as Member);
+            await memberStore?.save();
+        }
+    });
 
-            },
-            {
-                "FullName": "Department of Corrections",
-                "Alias": "DoC",
-                "DiscordID": "1146406262217646142",
-                "RoleID": "822426820447567872",
-                "Image": DoC,
-                "Icon": <LocalPoliceOutlined />
+    useEffect(() => {
+        const initializeStores = async () => {
+            const deptStore = await handleCreateStore('Departments');
+            const srvStore = await handleCreateStore('Servers');
+            const memStore = await handleCreateStore('Member'); // Single member key
 
-            }
+            setDepartmentStore(deptStore);
+            setServerStore(srvStore);
+            setMemberStore(memStore);
 
-        ]
-        setDepartments(tempDepartments);
-    }
+            const storedDepartments = await deptStore.get('departments');
+            const storedServers = await srvStore.get('servers');
+            const storedMember = await memStore.get('member'); // Single member key
 
-    const fetchServers = async () => {
-        const Servers: Server[] = [
-            {
-                "FullName": "Server 1",
-                "Alias": "S1"
-            },
-            {
-                "FullName": "Server 2",
-                "Alias": "S2"
-            },
-            {
-                "FullName": "Server 3",
-                "Alias": "S3"
-            },
-            {
-                "FullName": "Server 4",
-                "Alias": "S4"
-            }
+            if (storedDepartments) setDepartments(storedDepartments as Department[]);
+            if (storedServers) setServers(storedServers as Server[]);
+            if (storedMember) setMembers(storedMember as Member); // Set the single Member
+        };
 
-        ]
-        setServers(Servers);
-    }
-
-    React?.useEffect(() => {
-        fetchDepartments();
-        fetchServers();
-        fetchMembers();
+        initializeStores();
     }, []);
 
     const value = {
         Departments: departments,
         Servers: servers,
-        Members: members
-
+        Members: members, // Single Member object
+        DepartmentStore: departmentStore,
+        ServerStore: serverStore,
+        MemberStore: memberStore,
     };
 
     return (
@@ -127,6 +78,6 @@ const MainDataProvider: React.FC<{ children: React.ReactNode }> = ({ children })
             {children}
         </MainDataContext.Provider>
     );
-}
+};
 
 export { MainDataContext, MainDataProvider };

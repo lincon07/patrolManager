@@ -1,90 +1,140 @@
-import { CancelOutlined, Dns, LocalPoliceOutlined, LocalFireDepartmentOutlined, PeopleOutlineOutlined } from "@mui/icons-material";
-import { Button, Card, CardActions, CardMedia, Chip, Divider, Menu, MenuItem, MenuList, Stack, Tooltip, Typography } from "@mui/material";
-import React, { useEffect, useState } from "react";
+import React, { useState, useContext } from "react";
 import { MainDataContext } from "../../contexts/mainData";
 import { PatrolContext } from "../../contexts/patrol";
-import { Department, Server } from "../../types";
 import { AuthContext } from "../../contexts/Auth";
-import { enqueueSnackbar } from "notistack";
+import { Button, Card, CardActions, CardMedia, Chip, Divider, Menu, MenuItem, MenuList, Stack, Tooltip, Typography, Alert } from "@mui/material";
+import { CancelOutlined, CheckOutlined, Dns, LocalFireDepartmentOutlined, LocalPoliceOutlined, PeopleOutline } from "@mui/icons-material";
+import { ConvertDuration, Department, Server } from "../../types";
 
 const Advanced = () => {
-    const mainData = React.useContext(MainDataContext);
-    const patrol = React.useContext(PatrolContext);
-    const Auth = React.useContext(AuthContext);
+    const mainData = useContext(MainDataContext);
+    const patrol = useContext(PatrolContext);
+    const Auth = useContext(AuthContext);
     const [serverMenuOpen, setServerMenuOpen] = useState(false);
     const [serverMenuAnchor, setServerMenuAnchor] = useState<null | HTMLElement>(null);
-    const [roles, setRoles] = React.useState<string[]>([]);
 
     const handleServerMenuOpen = (event: React.MouseEvent<HTMLButtonElement>) => {
         setServerMenuAnchor(event.currentTarget);
         setServerMenuOpen(true);
     };
 
-    const handlePatrol = (e: React.MouseEvent<HTMLButtonElement>, Department: Department) => {
+    const handlePatrol = (e: React.MouseEvent<HTMLButtonElement>, department: Department) => {
         handleServerMenuOpen(e);
-        patrol?.handleSelectDepartment(Department);
+        patrol?.handleSelectDepartment(department);
     };
 
-    const handleServerSelect = (Server: Server) => {
-        patrol?.handleSelectServer(Server);
+    const handleServerSelect = (server: Server) => {
+        patrol?.handleSelectServer(server);
         setServerMenuOpen(false);
     };
 
-    useEffect(() => {
-        const accessToken = localStorage.getItem('authToken');
-        if (accessToken) {
-            Auth?.fetchMainGuildMemberData(accessToken).then(roles => {
-                console.log('User is authenticated');
-                console.log("roles", roles);
-                setRoles(roles);
-            });
-        } else {
-            console.log('User is not authenticated');
+    const handleDeptIcon = (dept: Department) => {
+        switch (dept?.Icon) {
+            case "LEO":
+                return <LocalPoliceOutlined />;
+            case "CIV":
+                return <PeopleOutline />;
+            case "FIRE":
+                return <LocalFireDepartmentOutlined />;
+            default:
+                return <LocalPoliceOutlined />;
         }
-    }, []);
-    
+    };
+
+    const handleTotalPatrolSeconds = (Dept: Department, raw: boolean = false): number | string => {
+        const totalSeconds = mainData?.Members?.PatrolLogs
+            ?.filter((log) => log?.department?.Alias === Dept?.Alias && log.EndTime && new Date(log.EndTime).getMonth() === new Date().getMonth())
+            ?.reduce((acc, curr) => acc + (curr?.Duration || 0), 0) || 0;
+
+        return raw ? totalSeconds : ConvertDuration(totalSeconds);
+    };
 
     return (
         <Stack padding={3}>
-            <Stack display={'flex'} flexDirection={'row'} flexWrap={'wrap'} gap={'3vw'} justifyContent={'center'}>
-                {mainData?.Departments?.map((dept, index) => (
-                    <Card variant="elevation" sx={{ width: '25vw', height: "auto" }} key={index}>
-                        <CardMedia width={"100%"} image={dept?.Image} component="img" />
-                        <CardMedia>
-                            <Stack sx={{ display: 'flex', flexDirection: 'row', gap: '10px', flexWrap: 'wrap', margin: '15px' }}>
-                                <Tooltip title={dept?.FullName}>
-                                    <Chip icon={<LocalPoliceOutlined />} label={dept?.Alias} color="info" variant="outlined" size="small" />
-                                </Tooltip>
-                            </Stack>
-                        </CardMedia>
-                        <Divider />
-                        <CardActions sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-                            <Button 
-                                startIcon={dept?.Icon} 
-                                variant="outlined" 
-                                color="primary" 
-                                size="small" 
-                                onClick={(e) => {handlePatrol(e, dept)}} 
-                                disabled={roles.includes(dept?.RoleID) ? false : true}
-                            >
-                                Patrol
-                            </Button>
-                        </CardActions>
-                    </Card>
-                ))}
-            </Stack>
+            {/* Check if Departments is available and is an array */}
+            {Array.isArray(mainData?.Departments) && mainData?.Departments.length > 0 ? (
+                <Stack display={'flex'} flexDirection={'row'} flexWrap={'wrap'} gap={'3vw'} justifyContent={'center'}>
+                    {mainData?.Departments.map((dept, index) => {
+                        const hasPermission = Auth?.guildMember?.roles?.includes(dept?.RoleID) || false;
 
+                        // Display Alert if the user doesn't have permission
+                        if (!hasPermission) {
+                            return (
+                               null
+                            );
+                        }
+
+                        return (
+                            <Card key={dept?.RoleID || index} variant="elevation" sx={{ width: '25vw', height: "auto" }}>
+                                <CardMedia width={"100%"} image={dept?.Image} component="img" />
+                                <CardMedia>
+                                    <Stack
+                                        sx={{
+                                            display: 'flex',
+                                            flexDirection: 'row',
+                                            gap: '10px',
+                                            flexWrap: 'wrap',
+                                            margin: '15px',
+                                        }}
+                                    >
+                                        <Tooltip title={dept?.FullName}>
+                                            <Chip
+                                                icon={handleDeptIcon(dept)}
+                                                label={dept?.Alias}
+                                                color="info"
+                                                variant="outlined"
+                                                size="small"
+                                            />
+                                        </Tooltip>
+                                        <Tooltip title={`${ConvertDuration(handleTotalPatrolSeconds(dept, true) as number)}`}>
+                                            <Chip
+                                                icon={(handleTotalPatrolSeconds(dept, true) as number) > 7200 ? <CheckOutlined /> : <CancelOutlined />}
+                                                label={(handleTotalPatrolSeconds(dept, true) as number) > 7200 ? `Hours Meet: ${ConvertDuration(handleTotalPatrolSeconds(dept, true) as number)}` : "Hours Not Meet"}
+                                                color={(handleTotalPatrolSeconds(dept, true) as number) > 7200 ? "success" : "error"}
+                                                variant="outlined"
+                                                size="small"
+                                            />
+                                        </Tooltip>
+                                    </Stack>
+                                </CardMedia>
+                                <Divider />
+                                <CardActions sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                                    <Button
+                                        startIcon={handleDeptIcon(dept)}
+                                        variant="contained"
+                                        color="primary"
+                                        size="small"
+                                        onClick={(e) => handlePatrol(e, dept)}
+                                    >
+                                        Patrol
+                                    </Button>
+                                </CardActions>
+                            </Card>
+                        );
+                    })}
+                </Stack>
+            ) : (
+                <Typography variant="h6" align="center">
+                    No departments available.
+                </Typography>
+            )}
+
+            {/* Server selection menu */}
             <Menu
                 variant="menu"
                 open={serverMenuOpen}
                 anchorEl={serverMenuAnchor}
                 onClose={() => setServerMenuOpen(false)}
             >
-                <MenuList variant="menu" dense>
+                <MenuList variant="menu">
                     {mainData?.Servers?.map((server, index) => (
-                        <MenuItem divider key={index} onClick={() => { handleServerSelect(server) }}>
+                        <MenuItem
+                            key={server?.Alias || index}
+                            divider={mainData?.Servers?.length - 1 !== index}
+                            onClick={() => handleServerSelect(server)}
+                        >
                             <Dns />
-                            <Typography ml={'10px'}> {server?.FullName} </Typography>
+                            <Typography ml={'10px'}>{server?.FullName}</Typography>
                         </MenuItem>
                     ))}
                 </MenuList>

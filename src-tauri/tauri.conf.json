@@ -45,15 +45,11 @@
         "https://github.com/lincon07/patrolManager/releases/latest/download/release.json"
       ]
     },
-    "oauth": {
-      "provider": {
-        "discord": {
-          "client_id": "1265144300404998186",
-          "client_secret": "IvYD68lB3XPloS3xDgCe09QB4DpZJ6r3",
-          "redirect_uri": "http://localhost:1420/auth",
-          "scopes": ["identify", "guilds"]
-        }
-      }
+    "shortcut": {
+      "globalShortcut": {
+        "enabled": true
     }
+    }
+
   }
 }

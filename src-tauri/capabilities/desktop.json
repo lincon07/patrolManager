@@ -6,6 +6,9 @@
     "linux"
   ],
   "permissions": [
-    "updater:default"
-    ]
+    "updater:default",
+    "global-shortcut:default",
+    "store:default",
+    "store:allow-create-store"
+  ]
 }
