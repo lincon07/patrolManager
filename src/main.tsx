@@ -10,21 +10,13 @@ import Unauthorized from "./components/unauthorized";
 import { LoadingProvider } from "./contexts/loading";
 import { MainDataProvider } from "./contexts/mainData";
 import { ThemeProvider } from "./contexts/theme";
-import { CircularProgress, CssBaseline } from "@mui/material";
-import { Circle } from "@mui/icons-material";
+import { CssBaseline } from "@mui/material";
 import { PatrolProvider } from "./contexts/patrol";
+import Patrol from "./components/patrol";
+import ShortCutyProvider from "./components/shortcuts";
+import Settings from "./components/settings";
+import Logs from "./components/logs";
 
-const Loading = () => {
-  // center the loading spinner
-  return (
-    <CircularProgress color="secondary" size={'20px'} sx={{
-      position: "absolute",
-      top: "50%",
-      left: "50%",
-      transform: "translate(-50%, -50%)"
-    }} />
-  )
-}
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
     <BrowserRouter>
@@ -36,11 +28,16 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
               <AuthProvider>
                 <MainDataProvider>
                   <PatrolProvider>
+                    <ShortCutyProvider>
                     <Routes>
                       <Route path="/home" element={<Home />} />
                       <Route path="/" element={<Auth />} />
                       <Route path="/unauthorized" element={<Unauthorized />} />
+                      <Route path="/patrol" element={<Patrol />} />
+                      <Route path="/settings" element={<Settings  />} />
+                      <Route path="/logs" element={<Logs  />} />
                     </Routes>
+                    </ShortCutyProvider>
                   </PatrolProvider>
                 </MainDataProvider>
               </AuthProvider>

@@ -7,6 +7,10 @@
     "core:default",
     "shell:allow-open",
     "updater:allow-check",
-    "updater:allow-download-and-install"
-  ]
+    "updater:allow-download-and-install",
+    "store:default",
+    "store:allow-create-store",
+    "global-shortcut:default",
+    "global-shortcut:allow-register"
+   ]
 }

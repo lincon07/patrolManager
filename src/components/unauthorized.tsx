@@ -9,10 +9,11 @@ const Unauthorized = () => {
     const handleLogOut = () => {
         Auth?.LogOut()
     }
+
     return (
         <Stack spacing={5} alignItems={'center'}>
-            <Alert severity="error">We have not been able to detect that you are a member of DoJ. If you think this was a mistake, reach out to my email patrolManager.Support@gmail.com</Alert>
-            <img src={patrolManagerLogo} alt="Patrol Manager Logo" height={'auto'} width={"30%"} />
+            <Alert severity="warning" sx={{minWidth: '100%'}}>We were not able to detect that you are a <strong>current</strong> member of the community!</Alert>
+            <img src={patrolManagerLogo} alt="Patrol Manager Logo" height={'auto'} width={"35%"} />
             <Button variant="contained" color="primary" onClick={handleLogOut}>Log Out</Button>
         </Stack>
     );

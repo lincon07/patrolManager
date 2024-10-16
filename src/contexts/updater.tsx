@@ -4,7 +4,7 @@ import React, { createContext, useEffect } from 'react';
 import { getVersion } from '@tauri-apps/api/app';
 import { enqueueSnackbar } from 'notistack';
 import { Dialog, Button, DialogActions, DialogContent, DialogContentText, DialogTitle, Divider } from '@mui/material';
-import TOS from '../TOS';
+import TOS from '../components/TOS';
 
 interface UpdaterContextType {
   checkForUpdates: () => void;

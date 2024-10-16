@@ -18,9 +18,11 @@ const Auth = () => {
             <ReusableAppbarToolbar elements={[
                 <Typography key={0} variant="h6">Authentication</Typography>
             ]} appbarProps={{ variant: 'elevation'}} toolbarProps={{variant: 'dense', color: 'warning'}} />
-            <img src={patrolManagerLogo} alt="Patrol Manager Logo" height={'auto'} width={"40%"} />
-            <Button variant="contained" color="secondary" onClick={handleLogin} startIcon={<RiDiscordLine />}>Authenticate</Button>
-            {window?.location?.href}
+            <Stack spacing={5} alignItems={'center'}>
+                <img src={patrolManagerLogo} alt="Patrol Manager Logo" height={'auto'} width={"35%"} />
+                <Typography variant="body1" color={"textSecondary"}>Please authenticate with Discord to continue</Typography>
+                <Button startIcon={<BsDiscord />} variant="contained" color="primary" onClick={handleLogin}>Authenticate</Button>
+            </Stack>
         </Stack>
     )
 }

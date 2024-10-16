@@ -1,9 +1,11 @@
 import { Warning } from "@mui/icons-material";
 import { Stepper, Step, StepLabel, Stack, Typography, Button, Box, Paper } from "@mui/material";
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { MainDataContext } from "../contexts/mainData";
 
 const TOS = () => {
-    // Define the Terms of Service steps
+    const mainData = useContext(MainDataContext);
     const steps = [
         "You will abide by all DoJRP rules and regulations.",
         "You will not use this service to abuse the system.",
@@ -11,16 +13,22 @@ const TOS = () => {
         "You have sole responsibility for your account and its actions."
     ];
 
-    // Track the current step and completion status
     const [activeStep, setActiveStep] = useState(0);
     const [completed, setCompleted] = useState(false);
+    const nav = useNavigate();
 
-    const handleNext = () => {
+    const handleNext = async () => {
         if (activeStep < steps.length - 1) {
             setActiveStep((prevStep) => prevStep + 1);
-        } else {
-            // Complete the stepper when the last step is reached
+        } if (activeStep === steps.length - 1) {
             setCompleted(true);
+            const existingData = await mainData?.MemberStore?.get("member");
+            await mainData?.MemberStore?.set("member", {
+                ...existingData, 
+                hasAgreedtoTOS: true // Ensure we add this flag to the existing data
+            });
+            await mainData?.MemberStore?.save();
+            nav("/settings");
         }
     };
 
@@ -39,12 +47,8 @@ const TOS = () => {
                 <Stepper activeStep={activeStep} orientation="vertical">
                     {steps.map((label, index) => (
                         <Step key={index} completed={index < activeStep}>
-                            <StepLabel
-                                icon={<Warning color="warning" />}
-                            >
-                                <Typography variant="body1">
-                                    {label}
-                                </Typography>
+                            <StepLabel icon={<Warning color="warning" />}>
+                                <Typography variant="body1">{label}</Typography>
                             </StepLabel>
                         </Step>
                     ))}
@@ -64,19 +68,11 @@ const TOS = () => {
 
                 <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
                     {!completed ? (
-                        <Button
-                            variant="contained"
-                            onClick={handleNext}
-                            sx={{ mt: 1 }}
-                        >
+                        <Button variant="contained" onClick={handleNext} sx={{ mt: 1 }}>
                             {activeStep === steps.length - 1 ? 'Agree' : 'Next'}
                         </Button>
                     ) : (
-                        <Button
-                            variant="contained"
-                            onClick={handleReset}
-                            sx={{ mt: 1 }}
-                        >
+                        <Button variant="contained" onClick={handleReset} sx={{ mt: 1 }}>
                             Reset
                         </Button>
                     )}

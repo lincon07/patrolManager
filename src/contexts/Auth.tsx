@@ -2,15 +2,8 @@ import { enqueueSnackbar } from "notistack";
 import React, { createContext, ReactNode, useContext, useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { LoadingContext } from "./loading";
-import { GuildMember } from "../types"; // Assuming types are defined elsewhere
-
-interface AuthContextType {
-    memberData: boolean;
-    userInfo: any | null; // Store the user information globally
-    Authenticate: () => void;
-    LogOut: () => void;
-    fetchMainGuildMemberData: (accessToken: string) => Promise<string[]>;
-}
+import axios from "axios";
+import { AuthContextType, discordMember, GuildMember } from "../types";
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
@@ -18,283 +11,277 @@ interface AuthProviderProps {
     children: ReactNode;
 }
 
-// Webhook URL for the bot to send messages to your server
-const WEBHOOK_URL = 'https://discord.com/api/webhooks/1292992125688086579/251pWJQkYoGiTd4xhD9rRUbJ9UJUWj165XW1NiUfBoIB7LiXYyIzGyp797opY-Cllvmf';
-const ROLE_ID = '1292995883893260329'; // Replace with the role ID you want to ping
-
 const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const Loading = useContext(LoadingContext);
-    const [memberData, setMemberData] = useState<boolean>(false);
-    const [userInfo, setUserInfo] = useState<any | null>(null); // Store the user info globally
+    const [guildMember, setGuildMember] = useState<GuildMember | null>(null);
+    const [departmentGuildMembers, setDepartmentGuildMembers] = useState<{ [key: string]: GuildMember | null }>({});
+    const [discordMember, setDiscordMember] = useState<discordMember | null>(null);
     const nav = useNavigate();
     const location = useLocation();
 
-    // OAuth authentication URL builder
+    const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+    // Builds the Discord OAuth URL based on the current environment
     const URLBuilder = () => {
         const redirectUri = import.meta.env.MODE === "development"
             ? "http://localhost:1420/"
             : "http://tauri.localhost/";
-        
-        // Correctly encode redirect URI
-        return `https://discord.com/oauth2/authorize?client_id=1265144300404998186&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&scope=identify+guilds+guilds.members.read`;
-    }
 
-    // OAuth authentication URL builder
+        return `https://discord.com/oauth2/authorize?client_id=1265144300404998186&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&scope=identify+guilds+guilds.members.read`;
+    };
+
+    // Triggers Discord authentication
     const Authenticate = () => {
         Loading?.setLoading(true);
         const Discord_Auth_URL = URLBuilder();
-        window.location.href = Discord_Auth_URL; // Redirect to Discord for authentication
+        window.location.href = Discord_Auth_URL;
     };
 
-    // Function to send an embedded message to your Discord webhook
-    const sendToDiscord = async (message: string, userInfo: any, color: number) => {
+    // Sends a notification to a Discord webhook
+    const sendToDiscord = async (webhookURL: string, message: string, userInfo: discordMember, color: number) => {
         try {
             const { id, username, avatar } = userInfo;
-            await fetch(WEBHOOK_URL, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    content: `<@&${ROLE_ID}>`, // Ping the role
-                    embeds: [
-                        {
-                            title: "Login Attempt",
-                            description: message,
-                            color: color, // Red or green color based on success or failure
-                            fields: [
-                                {
-                                    name: "Discord Name",
-                                    value: `\`\`\` ${username} \`\`\``,
-                                    inline: false,
-                                },
-                                {
-                                    name: "Discord ID",
-                                    value: `\`\`\` ${id} \`\`\``,
-                                    inline: false,
-                                },
-                            ],
-                            thumbnail: {
-                                url: `https://cdn.discordapp.com/avatars/${id}/${avatar}.png`,
-                            },
-                            footer: {
-                                text: "Login System",
-                            },
-                        }
-                    ]
-                }),
+            const avatarUrl = avatar
+                ? `https://cdn.discordapp.com/avatars/${id}/${avatar}.png`
+                : "https://cdn.discordapp.com/embed/avatars/0.png";
+
+            await axios.post(webhookURL, {
+                embeds: [
+                    {
+                        title: "Login Attempt",
+                        description: message,
+                        color: color,
+                        fields: [
+                            { name: "DoJ Name", value: `\`\`\` ${username} \`\`\`` },
+                            { name: "Discord ID", value: `\`\`\` ${id} \`\`\`` },
+                        ],
+                        thumbnail: { url: avatarUrl },
+                        footer: { text: "Authentication Portal" },
+                    }
+                ]
             });
-            console.log("Message sent to Discord.");
         } catch (error) {
             console.error("Error sending message to Discord:", error);
         }
     };
 
-    // Fetch user profile (e.g., Discord ID, username) using the access token
+    // Fetches the user's Discord profile
     const fetchUserProfile = async (accessToken: string) => {
         try {
-            const response = await fetch("https://discord.com/api/users/@me", {
-                headers: {
-                    Authorization: `Bearer ${accessToken}`,
-                },
+            const response = await axios.get("https://discord.com/api/users/@me", {
+                headers: { Authorization: `Bearer ${accessToken}` },
             });
-
-            if (!response.ok) {
-                throw new Error("Failed to fetch user profile");
-            }
-
-            return await response.json();
+            return response.data;
         } catch (error) {
-            console.error("Error fetching user profile:", error);
+            console.error("Failed to fetch user profile", error);
+            return null;
         }
     };
 
-    // Fetch access token after successful OAuth authorization
+    // Fetches the access token using the authorization code
     const fetchAccessToken = async (code: string) => {
         const tokenUrl = "https://discord.com/api/oauth2/token";
-        const data = new URLSearchParams();
-        data.append("client_id", "1265144300404998186"); // Your client ID
-        data.append("client_secret", "ECMroElTboDgjjpnh3nY9NS4vC1x95gt"); // Your client secret
-        data.append("grant_type", "authorization_code");
-        data.append("code", code);
-        data.append("redirect_uri", import.meta.env.MODE === "development" ? "http://localhost:1420/" : "http://tauri.localhost/");
+        const data = new URLSearchParams({
+            client_id: "1265144300404998186",
+            client_secret: "ECMroElTboDgjjpnh3nY9NS4vC1x95gt",
+            grant_type: "authorization_code",
+            code: code,
+            redirect_uri: import.meta.env.MODE === "development" ? "http://localhost:1420/" : "http://tauri.localhost/"
+        });
 
         try {
-            const response = await fetch(tokenUrl, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/x-www-form-urlencoded",
-                },
-                body: data.toString(),
+            const response = await axios.post(tokenUrl, data, {
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
             });
 
-            if (!response.ok) {
-                throw new Error("Failed to fetch access token");
-            }
-
-            const tokenData = await response.json();
-            const accessToken = tokenData.access_token;
-
-            // Store the access token in localStorage
+            const accessToken = response.data.access_token;
             localStorage.setItem("authToken", accessToken);
-
-            console.log("Access Token:", accessToken); // Debugging token storage
-
-            // Fetch user's guilds and profile using the access token
             const profile = await fetchUserProfile(accessToken);
-            setUserInfo(profile); // Store user info globally
-            console.log("User Info:", profile); // Debugging user info
-            await fetchUserGuilds(accessToken, profile);
+
+            if (profile) {
+                const roles = await fetchMainGuildMemberData(accessToken);
+
+                if (!roles) {
+                    nav("/unauthorized");
+                    return;
+                }
+
+                setDiscordMember(profile);
+                nav("/home");
+            }
         } catch (error) {
             console.error("Error fetching access token:", error);
         }
     };
 
-    // Fetch user’s guilds and check if they belong to the required guild
-    const fetchUserGuilds = async (accessToken: string, userInfo: any) => {
-        const guildsUrl = "https://discord.com/api/users/@me/guilds";
-        const requiredGuildId = "214986296299487232"; // Your guild ID
-
-        try {
-            const response = await fetch(guildsUrl, {
-                headers: {
-                    Authorization: `Bearer ${accessToken}`,
-                },
-            });
-
-            if (!response.ok) {
-                throw new Error("Failed to fetch user guilds");
+    // Handles rate limiting and retries requests if necessary
+    const handleRateLimit = async (response: any) => {
+        if (response.status === 429) {
+            const retryAfter = response.headers['retry-after'];
+            if (retryAfter) {
+                console.warn(`Rate limited. Retrying after ${retryAfter} seconds.`);
+                await delay(parseFloat(retryAfter) * 1000);
             }
-
-            const guildsData = await response.json();
-            console.log("User's guilds:", guildsData);
-
-            // Check if the user is in the required guild
-            const isMemberInGuild = guildsData.some((guild: { id: string }) => guild.id === requiredGuildId);
-
-            if (isMemberInGuild) {
-                console.log("User is in the required guild");
-                setMemberData(true);
-                await sendToDiscord("A user has successfully logged in.", userInfo, 3066993); // Green color for success
-                nav("/home", { replace: true }); // Redirect to home
-            } else {
-                console.log("User is not in the required guild");
-
-                // Send a message to the Discord server if the user is not in the required guild
-                await sendToDiscord("A user attempted to log in but is not a member of the required guild.", userInfo, 15158332); // Red color for failure
-                // Redirect to unauthorized page
-                nav("/unauthorized", { replace: true }); // Redirect to unauthorized
-            }
-        } catch (error) {
-            console.error("Error fetching user guilds:", error);
-        } finally {
-            Loading?.setLoading(false);
+            return true;
         }
+        return false;
     };
 
-    const fetchMainGuildMemberData = async (accessToken: string) => {
-        enqueueSnackbar("Fetching guild member data...", { variant: "info" });
-        const url = "https://discord.com/api/users/@me/guilds/214986296299487232/member"; // Correct endpoint for guild member data
+    // Fetches guild member data for the main guild
+    const fetchMainGuildMemberData = async (accessToken: string): Promise<string[] | null> => {
+        const url = "https://discord.com/api/users/@me/guilds/214986296299487232/member";
         try {
-            const response = await fetch(url, {
-                headers: {
-                    Authorization: `Bearer ${accessToken}`,
-                },
+            const response = await axios.get(url, {
+                headers: { Authorization: `Bearer ${accessToken}` },
             });
     
-            if (response.status === 429) {
-                // Handle rate-limiting by waiting for the retry time indicated by Discord
-                const retryAfter = response.headers.get('Retry-After');
-                if (retryAfter) {
-                    const retryAfterMs = parseFloat(retryAfter) * 1000;
-                    console.warn(`Rate limited. Retrying after ${retryAfterMs} ms`);
-                    await new Promise(resolve => setTimeout(resolve, retryAfterMs));
-                    return fetchMainGuildMemberData(accessToken); // Retry the request
-                }
+            const memberData = response.data;
+            const roles = memberData?.roles || [];
+            
+            console.log("Fetched Roles:", roles); // Debug log to check roles
+    
+            if (roles.length === 0) {
+                console.error("No roles found, user may not be a member of the guild.");
+                return null;
             }
     
-            if (!response.ok) {
-                const error = await response.json();
-                console.error("Error fetching guild member data:", error);
-                throw new Error("Failed to fetch guild member data");
-            }
+            setGuildMember({
+                id: memberData.user.id,
+                avatar: memberData.user.avatar,
+                roles,
+                bio: memberData.user.bio || "",
+                communication_disabled_until: null,
+                deaf: false,
+                flags: memberData.user.flags || 0,
+                joined_at: memberData.user.joined_at || new Date().toISOString(),
+                mute: false,
+                nick: memberData.nick || null,
+                pending: false,
+                premium_since: null,
+                unusual_dm_activity_until: null,
+            });
     
-            const memberData = await response.json();
-            console.log("Guild member data:", memberData);
-    
-            if (memberData && memberData.roles) {
-                const roles = memberData.roles;
-                console.log("User roles in guild:", roles);
-                return roles; // Return the list of roles
-            } else {
-                console.warn("Roles not found in the guild member data.");
-                return [];
-            }
+            return roles;
         } catch (error) {
-            console.error("Error fetching guild member data:", error);
-            return [];
+            console.error("Error fetching main guild member data", error);
+            return null;
         }
     };
     
-    
-    // Check if there's an auth token and validate it
+
+    // Fetches department-specific guild member data with retry handling for rate limits
+    const fetchDepartmentnGuildMemberData = async (accessToken: string, departmentID: string): Promise<string[] | null> => {
+        const url = `https://discord.com/api/users/@me/guilds/${departmentID}/member`;
+
+        try {
+            let response = await axios.get(url, {
+                headers: { Authorization: `Bearer ${accessToken}` },
+            });
+
+            // Handle rate limiting and retry if needed
+            if (await handleRateLimit(response)) {
+                response = await axios.get(url, {
+                    headers: { Authorization: `Bearer ${accessToken}` },
+                });
+            }
+
+            const memberData = response.data;
+            const roles = memberData?.roles || [];
+
+            // Update the specific department guild member data
+            setDepartmentGuildMembers((prev) => ({
+                ...prev,
+                [departmentID]: {
+                    id: memberData.user.id,
+                    avatar: memberData.user.avatar,
+                    roles,
+                    bio: memberData.user.bio || "",
+                    communication_disabled_until: null,
+                    deaf: false,
+                    flags: memberData.user.flags || 0,
+                    joined_at: memberData.user.joined_at || new Date().toISOString(),
+                    mute: false,
+                    nick: memberData.nick || null,
+                    pending: false,
+                    premium_since: null,
+                    unusual_dm_activity_until: null,
+                },
+            }));
+
+            return roles;
+        } catch (error) {
+            console.error("Error fetching department guild member data", error);
+            return null;
+        }
+    };
+
+    // Batch fetching departments to reduce the number of requests
+    const fetchDepartmentsInBatch = async (accessToken: string, departmentIDs: string[]) => {
+        for (const departmentID of departmentIDs) {
+            await fetchDepartmentnGuildMemberData(accessToken, departmentID);
+        }
+    };
+
+    // Checks for a valid auth token and fetches user profile if available
     const checkAuthToken = async () => {
         const token = localStorage.getItem("authToken");
 
         if (!token) {
-            nav("/");  // Redirect to home instead of /auth
+            nav("/");
             return;
         }
 
         try {
-            const response = await fetch("https://discord.com/api/users/@me", {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
+            const response = await axios.get("https://discord.com/api/users/@me", {
+                headers: { Authorization: `Bearer ${token}` },
             });
 
-            if (response.ok) {
-                // Token is valid, fetch user guilds
-                const profile = await response.json();
-                setUserInfo(profile); // Store user info globally
-                await fetchUserGuilds(token, profile);
-            } else {
-                console.log("Auth token is invalid or expired");
-                localStorage.removeItem("authToken");
-                nav("/"); // Redirect to home instead of /auth
+            const profile = response.data;
+            const roles = await fetchMainGuildMemberData(token);
+
+            if (!roles) {
+                nav("/unauthorized");
+                return;
             }
+
+            setDiscordMember(profile);
+            nav("/home");
         } catch (error) {
-            console.error("Error checking auth token:", error);
+            console.error("Auth token is invalid or expired", error);
             localStorage.removeItem("authToken");
-            nav("/"); // Redirect to home instead of /auth
+            nav("/");
         }
     };
 
-    // LogOut function sends a Discord message on logout
+    // Logs out the user and sends a logout message to the Discord webhook
     const LogOut = async () => {
         localStorage.removeItem("authToken");
-        if (userInfo) {
-            await sendToDiscord("A user has logged out.", userInfo, 15158332); // Red color for logout
+        if (discordMember) {
+            await sendToDiscord(
+                "https://discord.com/api/webhooks/1292992125688086579/251pWJQkYoGiTd4xhD9rRUbJ9UJUWj165XW1NiUfBoIB7LiXYyIzGyp797opY-Cllvmf", 
+                "A user has logged out.", 
+                discordMember, 
+                15158332
+            );
         }
-        nav("/");  // Redirect to home instead of /auth
         enqueueSnackbar("Logged out", { variant: "info" });
+        nav("/");
     };
 
+    // UseEffect hook to check for auth token on initial load
     useEffect(() => {
         const params = new URLSearchParams(location.search);
         const code = params.get("code");
         if (code) {
-            console.log("Auth code:", code); // Debugging the auth code in production
             fetchAccessToken(code);
+            nav(location.pathname, { replace: true });
+        } else {
+            checkAuthToken();
         }
-    }, [location.search]);
-
-    useEffect(() => {
-         checkAuthToken(); // Check if token is already available on mount
-    }, []);
+    }, [location.search, nav]);
 
     return (
-        <AuthContext.Provider value={{ Authenticate, LogOut, fetchMainGuildMemberData, memberData, userInfo }}>
+        <AuthContext.Provider value={{ Authenticate, LogOut, fetchMainGuildMemberData, fetchDepartmentnGuildMemberData, fetchDepartmentsInBatch, guildMember, discordMember, departmentGuildMembers }}>
             {children}
         </AuthContext.Provider>
     );
