@@ -46,7 +46,7 @@ export interface AuthContextType {
     Authenticate: () => void;
     LogOut: () => void;
     fetchMainGuildMemberData: (accessToken: string) => Promise<string[] | null>;
-    fetchDepartmentnGuildMemberData: (accessToken: string, DepartmentID: string) => Promise<string[] | null>;
+    fetchDepartmentGuildMemberData: (accessToken: string, DepartmentID: string) => Promise<string[] | null>;
     fetchDepartmentsInBatch: (accessToken: string, DepartmentIDs: string[]) => Promise<void>;
     
 }

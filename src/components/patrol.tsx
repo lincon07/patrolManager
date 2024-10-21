@@ -66,13 +66,13 @@ const Patrol = () => {
         <Stack spacing={10} direction={'column'} alignItems={'center'}>
             <ReusableAppbarToolbar 
                 elements={[
-                    <Stack key={1} direction="row" alignItems="center" flexGrow={1} spacing={1}>
+                    <Stack key={1} direction="row" alignItems="center" flexGrow={0.5} spacing={1}>
                         <Typography key={0}>Patrol as</Typography>
                         <Select defaultValue={patrol?.selectedDepartment?.Alias} variant="standard" autoWidth disabled={patrol?.onDuty}>
                             {mainData?.Departments?.map((dept, index) => {
                                 const hasPermission = Auth?.guildMember?.roles?.includes(dept?.RoleID) || false;
                                 return (
-                                    <MenuItem key={index} value={dept?.Alias} onClick={() => handleSelectDepartment(dept)} disabled={!hasPermission}>
+                                    <MenuItem  key={index} value={dept?.Alias} onClick={() => handleSelectDepartment(dept)} disabled={!hasPermission}>
                                         {dept?.Alias}
                                     </MenuItem>
                                 );
@@ -87,7 +87,7 @@ const Patrol = () => {
                             ))}
                         </Select>
                     </Stack>,
-                    <Typography key={1} variant="h6" component="div" flexGrow={1}>
+                    <Typography key={1} variant="h6" component="div" flexGrow={0.5} zIndex={1}>
                         {ConvertDuration(patrol?.mainPatrolDuration || 0)}
                     </Typography>,
                     <Tooltip key={2} title="Exit Patrol">

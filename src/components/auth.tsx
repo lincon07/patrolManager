@@ -6,9 +6,11 @@ import { patrolManagerLogo } from "../types"
 import { FaDiscord } from "react-icons/fa"
 import { BsDiscord } from "react-icons/bs"
 import { RiDiscordLine } from "react-icons/ri"
+import { useNavigate } from "react-router-dom"
 
 const Auth = () => {
     const Auth = useContext(AuthContext)
+    const nav = useNavigate()
 
     const handleLogin = () => {
         Auth?.Authenticate()

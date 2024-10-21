@@ -331,7 +331,7 @@ const PatrolProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                 </DialogContent>
                 <DialogActions>
                     {/* Show "Resume" button only if the subdivision is paused */}
-                    {subdivisionToResume?.EndTime && (
+                    {subdivisionToResume?.FullName && (
                         <Button onClick={handleResumeSubdivision} color="primary">
                             Resume
                         </Button>

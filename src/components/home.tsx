@@ -125,6 +125,27 @@ const Home = () => {
         await mainData?.DepartmentStore?.set("departments", initialDepartments);
         await mainData?.DepartmentStore?.save();
     };
+
+    const handleSetServers = async () => {
+        const initialServers = [
+            {
+                Alias: "1",
+                FullName: "Server 1"
+            },
+            {
+                Alias: "2",
+                FullName: "Server 2"
+            },
+            {
+                Alias: "3",
+                FullName: "Server 3"
+            }
+        ];
+    
+        // Save to the ServerStore
+        await mainData?.ServerStore?.set("servers", initialServers);
+        await mainData?.ServerStore?.save();
+    }
     
     const route = window?.location.href
 
@@ -136,12 +157,12 @@ const Home = () => {
                         <Stack key="stack" direction="row" spacing={2} flexGrow={0.5}>
                             <Typography key="title">Home</Typography>
                             {Updater?.currentVersion && (
-                                <Tooltip title="You are on the latest version">
+                                <Tooltip title={`${Updater?.currentVersion} is the latest version`}>
                                     <Chip label={`v${Updater.currentVersion}`} color="warning" size="small" variant="outlined" />
                                 </Tooltip>
                             )}
                         </Stack>,
-                        <Typography flexGrow={0.5}>{handleWelcomeMessage()} {mainData?.Members?.name}</Typography>,
+                        <Typography zIndex={1} flexGrow={0.5}>{handleWelcomeMessage()} {mainData?.Members?.name}</Typography>,
     
                         <Tooltip key="settings-tooltip-patrol-logs" title="Patrol Logs">
                             <IconButton color="inherit" onClick={() => { nav("/logs") }}>

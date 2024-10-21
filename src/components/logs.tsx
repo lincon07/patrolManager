@@ -13,23 +13,29 @@ import {
     Button,
     Menu,
     MenuItem,
+    Paper,
+    Fab,
 } from "@mui/material";
 import ReusableAppbarToolbar from "./reusables/appbar_toolbar";
-import { Delete, ExitToAppOutlined, ExpandMore, MoreVert } from "@mui/icons-material";
+import { ArrowUpward, Delete, ExitToAppOutlined, ExpandMore } from "@mui/icons-material";
 import { MainDataContext } from "../contexts/mainData";
-import React, { useContext } from "react";
-import { useNavigate } from "react-router-dom"; // Assuming you're using react-router for navigation
+import React, { useContext, useState, useEffect } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { ConvertDate, ConvertDuration } from "../types";
 import { PatrolContext } from "../contexts/patrol";
 
 const Logs = () => {
     const mainData = useContext(MainDataContext);
     const patrol = useContext(PatrolContext);
-    const [departmentMenuAnchor, setDepartmentMenuAnchor] = React.useState<null | HTMLElement>(null);
-    const [serverMenuAnchor, setServerMenuAnchor] = React.useState<null | HTMLElement>(null);
+    const [departmentMenuAnchor, setDepartmentMenuAnchor] = useState<null | HTMLElement>(null);
+    const [serverMenuAnchor, setServerMenuAnchor] = useState<null | HTMLElement>(null);
     const departmentMenuOpen = Boolean(departmentMenuAnchor);
     const serverMenuOpen = Boolean(serverMenuAnchor);
+    const [scrollingDirection, setScrollingDirection] = useState<"up" | "down" | null>(null);
+    const [selectedDepartment, setSelectedDepartment] = useState<string | null>(null);
+    const [selectedServer, setSelectedServer] = useState<string | null>(null);
     const nav = useNavigate();
+    const location = useLocation();
 
     const handleDepartmentMenu = (event: React.MouseEvent<HTMLElement>) => {
         setDepartmentMenuAnchor(event.currentTarget);
@@ -38,6 +44,54 @@ const Logs = () => {
     const handleSettingsMenu = (event: React.MouseEvent<HTMLButtonElement>) => {
         setServerMenuAnchor(event.currentTarget);
     };
+
+    const closeDepartmentMenu = () => setDepartmentMenuAnchor(null);
+    const closeServerMenu = () => setServerMenuAnchor(null);
+
+    useEffect(() => {
+        if (location?.state?.department) { 
+            setSelectedDepartment(location.state.department);
+        }
+    }, [location])
+    const handleSelectDepartment = (department: string | null) => {
+        setSelectedDepartment(department);
+        closeDepartmentMenu();
+    };
+
+    const handleSelectServer = (server: string | null) => {
+        setSelectedServer(server);
+        closeServerMenu();
+    };
+
+    let lastScrollTop = 0;
+
+    const onScroll = (e: any) => {
+        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+
+        if (scrollTop > lastScrollTop) {
+            setScrollingDirection("down");
+        } else {
+            setScrollingDirection("up");
+        }
+
+        lastScrollTop = scrollTop <= 0 ? 0 : scrollTop;
+    };
+
+    useEffect(() => {
+        window.addEventListener("scroll", onScroll);
+        return () => window.removeEventListener("scroll", onScroll);
+    }, []);
+
+    const handleScrollToTop = () => {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+    };
+
+    // Filter logs based on selected department and server
+    const filteredLogs = mainData?.Members?.PatrolLogs?.filter(log => {
+        const departmentMatch = selectedDepartment ? log.department?.FullName === selectedDepartment : true;
+        const serverMatch = selectedServer ? log.server?.FullName === selectedServer : true;
+        return departmentMatch && serverMatch;
+    }) || [];
 
     return (
         <Stack spacing={10}>
@@ -54,25 +108,24 @@ const Logs = () => {
                 toolbarProps={{ variant: "dense" }}
             />
 
-            <Table>
+            <Table size="small">
                 {/* Table Headers */}
                 <TableHead>
-                    <TableRow>
+                    <TableRow component={Paper}>
                         <TableCell>#</TableCell>
-                        <TableCell>Start Date</TableCell>
-                        <TableCell>End Date</TableCell>
+                        <TableCell>Dates</TableCell>
                         <TableCell>Duration</TableCell>
                         <TableCell>
                             <Tooltip title="Department">
                                 <Button color="inherit" endIcon={<ExpandMore />} onClick={handleDepartmentMenu}>
-                                    Department
+                                    {selectedDepartment || "Department"}
                                 </Button>
                             </Tooltip>
                         </TableCell>
                         <TableCell>
                             <Tooltip title="Server">
                                 <Button color="inherit" endIcon={<ExpandMore />} onClick={handleSettingsMenu}>
-                                    Server
+                                    {selectedServer || "Server"}
                                 </Button>
                             </Tooltip>
                         </TableCell>
@@ -82,70 +135,80 @@ const Logs = () => {
                 </TableHead>
                 {/* Table Body */}
                 <TableBody>
-    {mainData?.Members?.PatrolLogs?.length ? (
-        mainData?.Members?.PatrolLogs?.map((log, index) => (
-            <TableRow key={index}>
-                <TableCell>{index + 1}</TableCell>
-                <TableCell>{ConvertDate(log?.StartTime)}</TableCell>
-                <TableCell>{ConvertDate(log?.EndTime)}</TableCell>
-                <TableCell>{ConvertDuration(log?.Duration)}</TableCell>
-                <TableCell>{log.department?.Alias}</TableCell>
-                <TableCell>{log.server?.Alias}</TableCell>
-                <TableCell>
-                    {log.SubdivisionUsage?.map((subdiv, subIndex) => (
-                        <Tooltip key={subIndex} title={`Duration: ${ConvertDuration(subdiv?.Duration)}`}>
-                            <Chip label={subdiv.Subdivision?.Alias} />
-                        </Tooltip>
-                    ))}
-                </TableCell>
-                <TableCell>
-                    <IconButton onClick={() => patrol?.handleDeletePatrolLog(index)}>
-                        <Delete />
-                    </IconButton>
-                </TableCell>
-            </TableRow>
-        ))
-    ) : (
-        <TableRow>
-            <TableCell colSpan={8}>
-                <Alert severity="warning">No logs found</Alert>
-            </TableCell>
-        </TableRow>
-    )}
-</TableBody>
-
+                    {filteredLogs.length ? (
+                        filteredLogs.map((log, index) => (
+                            <TableRow key={index} component={index % 2 !== 0 ? Paper : "tr"}>
+                                <TableCell>{index + 1}</TableCell>
+                                <TableCell>{ConvertDate(log.StartTime)} - {ConvertDate(log.EndTime)}</TableCell>
+                                <TableCell>{ConvertDuration(log.Duration)}</TableCell>
+                                <TableCell><Chip size="small" label={log.department?.FullName} /></TableCell>
+                                <TableCell><Chip size="small" label={log.server?.FullName} /></TableCell>
+                                <TableCell>
+                                    {log.SubdivisionUsage && log.SubdivisionUsage.length > 0 ? (
+                                        log.SubdivisionUsage.map((subdiv, subIndex) => (
+                                            <Tooltip key={subIndex} title={`Duration: ${ConvertDuration(subdiv.Duration)}`}>
+                                                <Chip label={subdiv.Subdivision?.Alias} />
+                                            </Tooltip>
+                                        ))
+                                    ) : (
+                                        <Chip label="N/A" />
+                                    )}
+                                </TableCell>
+                                <TableCell>
+                                    <IconButton onClick={() => patrol?.handleDeletePatrolLog(index)}>
+                                        <Delete />
+                                    </IconButton>
+                                </TableCell>
+                            </TableRow>
+                        ))
+                    ) : (
+                        <TableRow>
+                            <TableCell colSpan={8}>
+                                <Alert severity="warning">No logs found</Alert>
+                            </TableCell>
+                        </TableRow>
+                    )}
+                </TableBody>
             </Table>
             {/* Department Menu */}
             <Menu
                 anchorEl={departmentMenuAnchor}
                 open={departmentMenuOpen}
-                onClose={() => setDepartmentMenuAnchor(null)}
+                onClose={closeDepartmentMenu}
             >
+                <MenuItem onClick={() => handleSelectDepartment(null)}>All Departments</MenuItem>
                 {mainData?.Departments?.map((dept, index) => (
                     <MenuItem
                         key={index}
-                        onClick={() => {
-
-                            setDepartmentMenuAnchor(null);
-                        }}
+                        onClick={() => handleSelectDepartment(dept?.FullName)}
                     >
                         {dept?.FullName}
                     </MenuItem>
                 ))}
             </Menu>
             {/* Server Menu */}
-            <Menu anchorEl={serverMenuAnchor} open={serverMenuOpen} onClose={() => setServerMenuAnchor(null)}>
+            <Menu anchorEl={serverMenuAnchor} open={serverMenuOpen} onClose={closeServerMenu}>
+                <MenuItem onClick={() => handleSelectServer(null)}>All Servers</MenuItem>
                 {mainData?.Servers?.map((server, index) => (
                     <MenuItem
                         key={index}
-                        onClick={() => {
-                            setServerMenuAnchor(null);
-                        }}
+                        onClick={() => handleSelectServer(server?.FullName)}
                     >
                         {server?.FullName}
                     </MenuItem>
                 ))}
             </Menu>
+
+            {scrollingDirection === "down" && (
+                <Fab
+                    size="small"
+                    color="secondary"
+                    sx={{ position: 'fixed', bottom: 16, right: 16 }}
+                    onClick={handleScrollToTop}
+                >
+                    <ArrowUpward sx={{ color: 'white' }} />
+                </Fab>
+            )}
         </Stack>
     );
 };

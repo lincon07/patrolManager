@@ -14,8 +14,8 @@ import { CssBaseline } from "@mui/material";
 import { PatrolProvider } from "./contexts/patrol";
 import Patrol from "./components/patrol";
 import ShortCutyProvider from "./components/shortcuts";
-import Settings from "./components/settings";
 import Logs from "./components/logs";
+import Settings from "./components/Settings";
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
@@ -29,14 +29,25 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
                 <MainDataProvider>
                   <PatrolProvider>
                     <ShortCutyProvider>
-                    <Routes>
-                      <Route path="/home" element={<Home />} />
-                      <Route path="/" element={<Auth />} />
-                      <Route path="/unauthorized" element={<Unauthorized />} />
-                      <Route path="/patrol" element={<Patrol />} />
-                      <Route path="/settings" element={<Settings  />} />
-                      <Route path="/logs" element={<Logs  />} />
-                    </Routes>
+                      <Routes>
+                        {/* Route for authentication */}
+                        <Route path="/" element={<Auth />} />
+
+                        {/* Route for home page */}
+                        <Route path="/home" element={<Home />} />
+
+                        {/* Route for unauthorized access */}
+                        <Route path="/unauthorized" element={<Unauthorized />} />
+
+                        {/* Route for patrol page */}
+                        <Route path="/patrol" element={<Patrol />} />
+
+                        {/* Route for settings page */}
+                        <Route path="/settings" element={<Settings />} />
+
+                        {/* Route for logs page */}
+                        <Route path="/logs" element={<Logs />} />
+                      </Routes>
                     </ShortCutyProvider>
                   </PatrolProvider>
                 </MainDataProvider>

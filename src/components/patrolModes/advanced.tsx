@@ -2,14 +2,19 @@ import React, { useState, useContext } from "react";
 import { MainDataContext } from "../../contexts/mainData";
 import { PatrolContext } from "../../contexts/patrol";
 import { AuthContext } from "../../contexts/Auth";
-import { Button, Card, CardActions, CardMedia, Chip, Divider, Menu, MenuItem, MenuList, Stack, Tooltip, Typography, Alert } from "@mui/material";
-import { CancelOutlined, CheckOutlined, Dns, LocalFireDepartmentOutlined, LocalPoliceOutlined, PeopleOutline } from "@mui/icons-material";
+import { Button, Card, CardActions, CardMedia, Chip, Divider, Menu, MenuItem, MenuList, Stack, Tooltip, Typography, Alert, IconButton, Badge } from "@mui/material";
+import { BookOutlined, BookSharp, CancelOutlined, CheckOutlined, Dns, LocalFireDepartmentOutlined, LocalPoliceOutlined, LoginSharp, PeopleOutline, Start } from "@mui/icons-material";
 import { ConvertDuration, Department, Server } from "../../types";
+import { GiPoliceCar, GiPouringChalice } from "react-icons/gi";
+import { SiContainerd } from "react-icons/si";
+import { PiPoliceCarLight } from "react-icons/pi";
+import { useNavigate } from "react-router-dom";
 
 const Advanced = () => {
     const mainData = useContext(MainDataContext);
     const patrol = useContext(PatrolContext);
     const Auth = useContext(AuthContext);
+    const nav = useNavigate()
     const [serverMenuOpen, setServerMenuOpen] = useState(false);
     const [serverMenuAnchor, setServerMenuAnchor] = useState<null | HTMLElement>(null);
 
@@ -98,16 +103,21 @@ const Advanced = () => {
                                     </Stack>
                                 </CardMedia>
                                 <Divider />
-                                <CardActions sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-                                    <Button
-                                        startIcon={handleDeptIcon(dept)}
-                                        variant="contained"
-                                        color="primary"
-                                        size="small"
-                                        onClick={(e) => handlePatrol(e, dept)}
-                                    >
-                                        Patrol
-                                    </Button>
+                                <CardActions sx={{display: 'flex', flexDirection: 'row'}}>
+                                    <Stack spacing={3} direction={'row'} flexGrow={1}>
+                                        <Badge color="secondary" badgeContent={mainData?.Members?.PatrolLogs?.filter((log) => log.department.Alias === dept?.Alias).length}>
+                                            <IconButton size="small" onClick={() => {
+                                                nav("/logs", { state: { department: dept?.FullName } });
+                                            }}>
+                                                <BookOutlined />
+                                            </IconButton>
+                                        </Badge> 
+                                    </Stack>
+                                    <Tooltip title="Patrol">
+                                            <IconButton onClick={(e) => handlePatrol(e, dept)}>
+                                                <PiPoliceCarLight />
+                                            </IconButton>
+                                        </Tooltip>
                                 </CardActions>
                             </Card>
                         );
