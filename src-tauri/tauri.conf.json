@@ -20,6 +20,7 @@
         "fullscreen": false
       }
     ],
+    "withGlobalTauri": true,
     "security": {
       "csp": "default-src 'self' tauri://localhost; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src 'self' http://localhost:* tauri://localhost https://discord.com https://cdn.discordapp.com https://discordapp.com"
     }
@@ -48,8 +49,7 @@
     "shortcut": {
       "globalShortcut": {
         "enabled": true
+      }
     }
-    }
-
   }
 }

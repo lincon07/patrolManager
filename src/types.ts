@@ -1,5 +1,6 @@
 import { Image } from "@tauri-apps/api/image";
 import AppLogo from "./assets/patrol_manager_logo.png";
+import { Message } from "@tauri-apps/plugin-websocket";
 
 // Patrol Manager Logo
 export const patrolManagerLogo = AppLogo;
@@ -46,8 +47,7 @@ export interface AuthContextType {
     Authenticate: () => void;
     LogOut: () => void;
     fetchMainGuildMemberData: (accessToken: string) => Promise<string[] | null>;
-    fetchDepartmentGuildMemberData: (accessToken: string, DepartmentID: string) => Promise<string[] | null>;
-    fetchDepartmentsInBatch: (accessToken: string, DepartmentIDs: string[]) => Promise<void>;
+    sendToDiscord: (Message:string, WebHook:string)  => void;
     
 }
 
@@ -94,6 +94,7 @@ export interface PatrolContextType {
     mainPatrolDuration: number;                     // Total patrol duration for the user
     activeSubdivision: string | null;               // Active subdivision alias (if any)
     subdivisionUsage: SubdivisionUsage[];           // Array to track subdivision usage
+    isbodyCameraAudio: boolean;                            // Whether the user has a body camera
     handleSelectDepartment: (dept: Department) => void;  // Function to select a department
     handleSelectServer: (server: Server) => void;   // Function to select a server
     handleOnDuty: () => void;                       // Function to mark the user as on duty
@@ -106,6 +107,7 @@ export interface PatrolContextType {
     handleStopSubdivisionUsage: (subdivision: Subdivision) => void;  // Function to stop subdivision usage
     handlePauseSubdivisionUsage: (subdivision: Subdivision) => void; // Function to pause subdivision usage
     handleResumeSubdivisionUsage: (subdivision: Subdivision) => void; // Function to resume subdivision usage
+    handleToggleBodyCameraAudio: () => void;        // Function to toggle body camera audio
 }
 
 

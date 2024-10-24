@@ -9,6 +9,22 @@
     "updater:default",
     "global-shortcut:default",
     "store:default",
-    "store:allow-create-store"
+    "store:allow-create-store",
+    {
+      "identifier": "shell:allow-execute",
+      "allow": [
+        {
+          "name": "exec-sh",
+          "cmd": "sh",
+          "args": [
+            "-c",
+            {
+              "validator": "^.+$"
+            }
+          ],
+          "sidecar": true
+        }
+      ]
+    }
   ]
 }

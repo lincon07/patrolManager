@@ -1,6 +1,6 @@
 import { Chip, IconButton, Menu, MenuItem, MenuList, Stack, Tooltip, Typography, Box, Button, Alert } from "@mui/material";
 import ReusableAppbarToolbar from "./reusables/appbar_toolbar";
-import { Book, ExitToAppOutlined, LocalPoliceOutlined, ManageAccounts, Mode, Settings, ViewCompact } from "@mui/icons-material";
+import { AdminPanelSettings, AdminPanelSettingsOutlined, Book, ExitToAppOutlined, LocalPoliceOutlined, ManageAccounts, Mode, Settings, ViewCompact } from "@mui/icons-material";
 import React, { useContext, useEffect, useState } from "react";
 import { AuthContext } from "../contexts/Auth";
 import { UpdaterContext } from "../contexts/updater";
@@ -11,6 +11,7 @@ import { PatrolContext } from "../contexts/patrol";
 import { useNavigate } from "react-router-dom";
 import { Department } from "../types";
 import TOS from "./TOS";
+import { Command } from '@tauri-apps/plugin-shell';
 
 const Home = () => {
     const Auth = useContext(AuthContext);
@@ -111,7 +112,7 @@ const Home = () => {
                 Alias: "CIV",
                 FullName: "Civilian Operations",
                 DiscordID: "789348217124945950",
-                RoleID: "428212810049257487",
+                RoleID: "428212704348471308",
                 Image: "/civ.png",
                 Icon: "CIV",
                 Subdivisions: [
@@ -147,7 +148,6 @@ const Home = () => {
         await mainData?.ServerStore?.save();
     }
     
-    const route = window?.location.href
 
     return (
         <Stack spacing={!mainData?.Departments === null ? 5 : 10}>
@@ -182,30 +182,50 @@ const Home = () => {
             </Box>
             {mainData?.Members?.hasAgreedtoTOS === false && <TOS />}
             
-            <Advanced />
+            {mainData?.Departments !== null ? (
+                <Advanced /> 
+            ) : 
+            (
+               <Stack spacing={5} direction="column" alignItems="center">
+                    <Typography variant="h5" color="textSecondary">
+                        No departments available.
+                    </Typography>
+                    <Typography variant="body2" color="textSecondary">
+                        Please try again in a few minutes.    
+                    </Typography>    
+                </Stack>
+            )
 
+            }
+           
             {/* Settings Menu */}
-            <Menu open={Boolean(settingsMenuAnchor)} anchorEl={settingsMenuAnchor} onClose={handleSettingsMenuClose}>
-                <MenuList>
-                    <MenuItem onClick={handleTogglePatrolMode}>
+            <Menu open={Boolean(settingsMenuAnchor)} anchorEl={settingsMenuAnchor} onClose={handleSettingsMenuClose} >
+                    <MenuItem onClick={handleTogglePatrolMode} divider>
                         <ViewCompact color="inherit" />
                         <Typography ml={"10px"} variant="inherit">
                             Toggle Patrol Mode
                         </Typography>
                     </MenuItem>
-                    <MenuItem onClick={() => { nav("/settings"); handleSettingsMenuClose(); }}>
+                    <MenuItem onClick={() => { nav("/settings"); handleSettingsMenuClose(); }} divider>
                         <Settings color="inherit" />
                         <Typography ml={"10px"} variant="inherit">
                             Settings
                         </Typography>
                     </MenuItem>
+                        {Auth?.guildMember?.roles?.includes("276889430101458954" || "427147673079119872" || "305517359244902402") && (
+                            <MenuItem onClick={() => { nav("/admin")}} divider>
+                                <AdminPanelSettingsOutlined color="inherit" />
+                                    <Typography ml={"10px"} variant="inherit">
+                                        Administrative Portal
+                                    </Typography>
+                            </MenuItem>
+                        )}
                     <MenuItem onClick={handleLogOut}>
                         <ExitToAppOutlined color="inherit" />
-                        <Typography ml={"10px"} variant="inherit">
-                            Sign Out
-                        </Typography>
+                            <Typography ml={"10px"} variant="inherit">
+                                Sign Out
+                            </Typography>
                     </MenuItem>
-                </MenuList>
             </Menu>
             {/* End Settings Menu */}
         </Stack>

@@ -4,6 +4,8 @@ import { enqueueSnackbar } from "notistack";
 import { useNavigate } from "react-router-dom";
 import { MainDataContext } from "./mainData";
 import { Dialog, DialogActions, DialogContent, DialogTitle, Button } from '@mui/material';
+import bodyCameraAudioFile from "../assets/bodyCamera.mp3";
+import { invoke } from "@tauri-apps/api/core";
 
 const PatrolContext = React.createContext<PatrolContextType | null>(null);
 
@@ -17,18 +19,19 @@ const PatrolProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
     const [mainPatrolDuration, setMainPatrolDuration] = React.useState<number>(0);
     const [subdivisionUsage, setSubdivisionUsage] = React.useState<SubdivisionUsage[]>([]);
     const [activeSubdivision, setActiveSubdivision] = React.useState<string | null>(null);
-
-    const subdivisionIntervalRef = React.useRef<number | null>(null); // Ref for interval ID
-    const activeSubdivisionStartTimeRef = React.useRef<Date | null>(null); // Ref to store start time
-
+    const [isbodyCameraAudio, SetisbodyCameraAudio] = React.useState<boolean>(true);
     const [subdivisionToResume, setSubdivisionToResume] = useState<Subdivision | null>(null);
     const [confirmDialogOpen, setConfirmDialogOpen] = useState<boolean>(false);
+    const subdivisionIntervalRef = React.useRef<number | null>(null); // Ref for interval ID
+    const activeSubdivisionStartTimeRef = React.useRef<Date | null>(null); // Ref to store start time
+    const bodyCameraAudio = new Audio(bodyCameraAudioFile);
 
     const nav = useNavigate();
 
     // Effect to handle the main patrol duration timer when onDuty is true
     useEffect(() => {
         let interval: number | null = null;
+
         if (onDuty) {
             interval = window.setInterval(() => {
                 setMainPatrolDuration((prevDuration) => prevDuration + 1);
@@ -40,18 +43,39 @@ const PatrolProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                 clearInterval(interval);
             }
         };
-    }, [onDuty]);
+    }, [onDuty]
+    );
+
+// Effect to handle body camera audio
+useEffect(() => {
+    let audioInterval: number | null = null;
+    if (onDuty && isbodyCameraAudio) {
+        // Start playing the audio every 10 seconds
+        audioInterval = window.setInterval(() => {
+            bodyCameraAudio.play().catch((error) => {
+                console.warn("Audio playback failed due to browser policies:", error);
+            });
+        }, 120000);
+    }
+
+    return () => {
+        // Clear the interval when `onDuty` or `isbodyCameraAudio` changes
+        if (audioInterval !== null) {
+            clearInterval(audioInterval);
+        }
+    };
+}, [onDuty, isbodyCameraAudio]);
 
     // Handle select department
     const handleSelectDepartment = (dept: Department) => {
         setSelectedDepartment(dept);
-        enqueueSnackbar(`Selected Department: ${dept.FullName}`, { variant: "info" });
+        enqueueSnackbar(`Selected Department: ${dept.FullName}`, { variant: "info" , autoHideDuration: 2000});
     };
 
     // Handle select server
     const handleSelectServer = (server: Server) => {
         setSelectedServer(server);
-        enqueueSnackbar(`Selected Server: ${server.FullName}`, { variant: "info" });
+        enqueueSnackbar(`Selected Server: ${server.FullName}`, { variant: "info", autoHideDuration: 2000 });
     };
 
     // Handle patrol log creation
@@ -278,10 +302,11 @@ const PatrolProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         enqueueSnackbar("You are now off duty", { variant: "info" });
         setSelectedDepartment(null);
         setSelectedServer(null);
-        nav("/home");
         setMainPatrolDuration(0);
         setSubdivisionUsage([]);
         setActiveSubdivision(null);
+        nav("/home");
+        invoke("clear_discord_status")
     };
 
     // Toggle patrol mode
@@ -296,6 +321,9 @@ const PatrolProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         nav("/home");
     };
 
+    const handleToggleBodyCameraAudio = () => {
+        SetisbodyCameraAudio(!isbodyCameraAudio);
+    }
     const value: PatrolContextType = {
         onDuty,
         selectedDepartment,
@@ -305,6 +333,7 @@ const PatrolProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         mainPatrolDuration,
         activeSubdivision,
         subdivisionUsage,
+        isbodyCameraAudio,
         handleSelectDepartment,
         handleSelectServer,
         handleOnDuty,
@@ -316,7 +345,8 @@ const PatrolProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         handleStartSubdivisionUsage,
         handleStopSubdivisionUsage,
         handlePauseSubdivisionUsage,
-        handleResumeSubdivisionUsage: handleResumeSubdivision // Use corrected function
+        handleResumeSubdivisionUsage: handleResumeSubdivision, // Use corrected function
+        handleToggleBodyCameraAudio,
     };
 
     return (

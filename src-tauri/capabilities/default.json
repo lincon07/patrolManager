@@ -11,6 +11,23 @@
     "store:default",
     "store:allow-create-store",
     "global-shortcut:default",
-    "global-shortcut:allow-register"
-   ]
+    "global-shortcut:allow-register",
+    "shell:default",
+    "shell:allow-execute",
+    {
+      "identifier": "shell:allow-execute",
+      "allow": [
+        {
+          "name": "exec-sh",
+          "cmd": "sh",
+          "args": [
+            "-c",
+            {
+              "validator": "^.+$"
+            }
+          ]
+        }
+      ]
+    }
+  ]
 }

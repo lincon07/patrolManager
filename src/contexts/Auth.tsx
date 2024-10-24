@@ -4,7 +4,6 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { LoadingContext } from "./loading";
 import axios from "axios";
 import { AuthContextType, discordMember, GuildMember } from "../types";
-import * as RPC from "discord-rpc";
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
@@ -20,8 +19,12 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const nav = useNavigate();
     const location = useLocation();
 
-
     const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+    // Generates a random state value for CSRF protection
+    const generateRandomState = () => {
+        return Math.random().toString(36).substring(2) + Date.now().toString(36);
+    };
 
     // Builds the Discord OAuth URL based on the current environment
     const URLBuilder = () => {
@@ -29,7 +32,11 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             ? "http://localhost:1420/"
             : "http://tauri.localhost/";
 
-        return `https://discord.com/oauth2/authorize?client_id=1265144300404998186&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&scope=identify+guilds+guilds.members.read`;
+        // Generate a random state value
+        const state = generateRandomState();
+        localStorage.setItem('oauthState', state); // Store it for later verification
+
+        return `https://discord.com/oauth2/authorize?client_id=1265144300404998186&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&scope=identify+guilds+guilds.members.read&state=${encodeURIComponent(state)}`;
     };
 
     // Triggers Discord authentication
@@ -37,6 +44,7 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         Loading?.setLoading(true);
         const Discord_Auth_URL = URLBuilder();
         window.location.href = Discord_Auth_URL;
+        console.log("Naving to Discord Auth URL:", Discord_Auth_URL);
     };
 
     // Handles rate limiting and retries requests if necessary
@@ -51,6 +59,42 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
         return false;
     };
+    // Fetches the access token using the authorization code
+const fetchAccessToken = async (code: string) => {
+    const tokenUrl = "https://discord.com/api/oauth2/token";
+    const data = new URLSearchParams({
+        client_id: "1265144300404998186",
+        client_secret: "ECMroElTboDgjjpnh3nY9NS4vC1x95gt",
+        grant_type: "authorization_code",
+        code: code,
+        redirect_uri: import.meta.env.MODE === "development" ? "http://localhost:1420/" : "http://tauri.localhost/"
+    });
+
+    try {
+        const response = await axios.post(tokenUrl, data, {
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        });
+
+        const accessToken = response.data.access_token;
+        localStorage.setItem("authToken", accessToken);
+        const profile = await fetchUserProfile(accessToken);
+
+        if (profile) {
+            const roles = await fetchMainGuildMemberData(accessToken);
+
+            if (!roles) {
+                nav("/home");
+                return;
+            }
+
+            setDiscordMember(profile);
+            nav("/home");
+        }
+    } catch (error) {
+        console.error("Error fetching access token:", error);
+    }
+};
+
 
     // Fetches the user's Discord profile
     const fetchUserProfile = async (accessToken: string) => {
@@ -104,106 +148,12 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
     };
 
-    // Fetches department-specific guild member data with retry handling for rate limits
-    const fetchDepartmentGuildMemberData = async (accessToken: string, departmentID: string, attempt = 1): Promise<string[] | null> => {
-        const url = `https://discord.com/api/v10/users/@me/guilds/${departmentID}/member`;
-
+    // Sends a message to a Discord webhook
+    const sendToDiscord = async (Message: string, WebHook: string) => {
         try {
-            let response = await axios.get(url, {
-                headers: { Authorization: `Bearer ${accessToken}` },
-            });
-
-            // Handle rate limiting and retry if needed
-            if (await handleRateLimit(response)) {
-                response = await axios.get(url, {
-                    headers: { Authorization: `Bearer ${accessToken}` },
-                });
-            }
-
-            const memberData = response.data;
-            const roles = memberData?.roles || [];
-
-            // Update the specific department guild member data
-            setDepartmentGuildMembers((prev) => ({
-                ...prev,
-                [departmentID]: {
-                    id: memberData.user.id,
-                    avatar: memberData.user.avatar,
-                    roles,
-                    bio: memberData.user.bio || "",
-                    communication_disabled_until: null,
-                    deaf: false,
-                    flags: memberData.user.flags || 0,
-                    joined_at: memberData.user.joined_at || new Date().toISOString(),
-                    mute: false,
-                    nick: memberData.nick || null,
-                    pending: false,
-                    premium_since: null,
-                    unusual_dm_activity_until: null,
-                },
-            }));
-
-            return roles;
-        } catch (error:any) {
-            if (error.response?.status === 429) {
-                const retryAfter = error.response.data.retry_after;
-                console.warn(`Rate limited. Retrying after ${retryAfter} seconds...`);
-
-                // Exponential backoff logic
-                const nextAttemptDelay = retryAfter * 1000;
-
-                // Wait for the `retry_after` time before retrying
-                await new Promise(resolve => setTimeout(resolve, nextAttemptDelay));
-
-                console.log(`Retrying request, attempt ${attempt + 1}...`);
-                return fetchDepartmentGuildMemberData(accessToken, departmentID, attempt + 1); // Retry the request
-            } else {
-                console.error("Error fetching department guild member data", error);
-                return null;
-            }
-        }
-    };
-
-    // Fetches the access token using the authorization code
-    const fetchAccessToken = async (code: string) => {
-        const tokenUrl = "https://discord.com/api/oauth2/token";
-        const data = new URLSearchParams({
-            client_id: "1265144300404998186",
-            client_secret: "ECMroElTboDgjjpnh3nY9NS4vC1x95gt",
-            grant_type: "authorization_code",
-            code: code,
-            redirect_uri: import.meta.env.MODE === "development" ? "http://localhost:1420/" : "http://tauri.localhost/"
-        });
-
-        try {
-            const response = await axios.post(tokenUrl, data, {
-                headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            });
-
-            const accessToken = response.data.access_token;
-            localStorage.setItem("authToken", accessToken);
-            const profile = await fetchUserProfile(accessToken);
-
-            if (profile) {
-                const roles = await fetchMainGuildMemberData(accessToken);
-
-                if (!roles) {
-                    nav("/home");
-                    return;
-                }
-
-                setDiscordMember(profile);
-                nav("/home");
-            }
+            await axios.post(WebHook, { content: Message });
         } catch (error) {
-            console.error("Error fetching access token:", error);
-        }
-    };
-
-    // Batch fetching departments to reduce the number of requests
-    const fetchDepartmentsInBatch = async (accessToken: string, departmentIDs: string[]) => {
-        for (const departmentID of departmentIDs) {
-            await fetchDepartmentGuildMemberData(accessToken, departmentID);
+            console.error("Error sending message to Discord webhook:", error);
         }
     };
 
@@ -238,39 +188,37 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
     };
 
-    // Logs out the user and sends a logout message to the Discord webhook
-    const LogOut = async () => {
-        localStorage.removeItem("authToken");
-        if (discordMember) {
-            await axios.post("https://discord.com/api/webhooks/WEBHOOK_URL", {
-                content: `User ${discordMember.username} (${discordMember.id}) has logged out.`,
-            });
-        }
-        enqueueSnackbar("Logged out", { variant: "info" });
-        nav("/");
-    };
-
     // UseEffect hook to check for auth token on initial load
     useEffect(() => {
         const params = new URLSearchParams(location.search);
         const code = params.get("code");
-        if (code) {
+        const returnedState = params.get("state");
+
+        // Retrieve the stored state value
+        const storedState = localStorage.getItem('oauthState');
+
+        if (code && returnedState === storedState) {
             fetchAccessToken(code);
             nav(location.pathname, { replace: true });
+        } else if (code && returnedState !== storedState) {
+            console.error("State parameter mismatch - possible CSRF attack.");
+            enqueueSnackbar("Invalid authentication attempt", { variant: "error" });
+            nav("/");
         } else {
             checkAuthToken();
         }
     }, [location.search]);
 
-    
-
     return (
         <AuthContext.Provider value={{ 
             Authenticate, 
-            LogOut, 
+            LogOut: () => {
+                localStorage.removeItem("authToken");
+                enqueueSnackbar("Logged out", { variant: "info" });
+                nav("/");
+            },
             fetchMainGuildMemberData, 
-            fetchDepartmentGuildMemberData,
-            fetchDepartmentsInBatch, 
+            sendToDiscord,
             guildMember, 
             discordMember, 
             departmentGuildMembers 
